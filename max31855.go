@@ -1,13 +1,17 @@
 package max31855
 
 import (
-	"encoding/binary"
 	"errors"
 
 	"periph.io/x/periph/conn/spi"
 
-	. "periph.io/x/periph/conn/physic"
+	"periph.io/x/periph/conn/physic"
 )
+
+type Temps struct {
+	Thermocouple float64
+	Internal     float64
+}
 
 // ErrOpenCircuit - Thermocouple is not connected
 var ErrOpenCircuit error = errors.New("Thermocouple is not connected")
@@ -28,7 +32,7 @@ type Dev struct {
 
 // New - Connects to the MAX31855
 func New(p spi.Port) (*Dev, error) {
-	c, err := p.Connect(5*MegaHertz, spi.Mode0, 8)
+	c, err := p.Connect(5*physic.MegaHertz, spi.Mode0, 8)
 
 	if err != nil {
 		return nil, err
@@ -42,34 +46,32 @@ func New(p spi.Port) (*Dev, error) {
 }
 
 // GetTemp - Gets the current temperature in Celcius
-func (d *Dev) GetTemp() (float64, error) {
+func (d *Dev) GetTemp() (Temps, error) {
 	raw := make([]byte, 4)
 
 	if err := d.c.Tx(nil, raw); err != nil {
-		return 0, err
+		return Temps{}, err
 	}
 
 	if raw[3]&0x01 != 0 {
-		return 0, ErrOpenCircuit
+		return Temps{}, ErrOpenCircuit
 	}
 
 	if raw[3]&0x02 != 0 {
-		return 0, ErrShortToGround
+		return Temps{}, ErrShortToGround
 	}
 
 	if raw[3]&0x04 != 0 {
-		return 0, ErrShortToVcc
+		return Temps{}, ErrShortToVcc
 	}
 
-	v := binary.BigEndian.Uint32(raw)
-
-	if v&0x07 != 0 {
-		return 0, ErrReadingValue
+	thermocoupleWord := ((uint16(raw[0]) << 8) | uint16(raw[1])) >> 2
+	thermocouple := float64(int16(thermocoupleWord)) * 0.25
+	internalWord := ((uint16(raw[2]) << 8) | uint16(raw[3])) >> 4
+	internalTemp := float64(int16(internalWord)) * 0.0625
+	temps := Temps{
+		Internal:     internalTemp,
+		Thermocouple: thermocouple,
 	}
-
-	v >>= 18
-
-	t := float64(v) * 0.35
-
-	return t, nil
+	return temps, nil
 }

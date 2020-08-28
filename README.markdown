@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/lukechannings/max31855"
+	"github.com/blasphemy/max31855"
 
 	"periph.io/x/periph/conn/spi/spireg"
 	"periph.io/x/periph/host"
@@ -37,8 +37,8 @@ func main() {
   if err != nil {
 		fmt.Println(err.Error())
 	}
-
-	fmt.Printf("Current temperature: %f ℃", temp.Celsius())
+	
+	fmt.Printf("Thermocouple Temp: %f ℃ Internal Temp: %f ℃", temp.Thermocouple, temp.Internal)
 }
 
 ```
